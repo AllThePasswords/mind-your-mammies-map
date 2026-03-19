@@ -12,7 +12,7 @@
   #map {
     width: 100%;
     height: 100vh;
-    min-height: 800px;
+    height: 100dvh;
   }
 
   /* Rotation control panel */
@@ -26,10 +26,13 @@
     padding: 10px 24px;
     box-shadow: 0 2px 12px rgba(0,0,0,0.15);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 10px 12px;
     z-index: 10;
     user-select: none;
+    max-width: calc(100vw - 20px);
   }
   .rotation-control label {
     font-size: 13px;
@@ -63,7 +66,7 @@
     background: #fff;
     color: #000;
     border: 2px solid #000;
-    margin-left: 8px;
+    margin-left: 0;
   }
   .rotation-control .toggle-btn:hover { background: #eee; }
   .rotation-control .toggle-btn.active {
@@ -75,6 +78,34 @@
     height: 20px;
     background: #ccc;
     margin: 0 4px;
+  }
+  .rotation-row, .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Mobile */
+  @media (max-width: 680px) {
+    .rotation-control {
+      bottom: 12px;
+      padding: 8px 12px;
+      gap: 6px 8px;
+      border-radius: 10px;
+    }
+    .rotation-control input[type=range] { width: 120px; }
+    .rotation-control label { font-size: 11px; }
+    .rotation-control button { font-size: 11px; padding: 4px 8px; }
+    .rotation-control .angle-display { font-size: 11px; min-width: 30px; }
+    .rotation-control .divider { display: none; }
+    .hint { font-size: 11px; padding: 5px 12px; }
+  }
+  @media (max-width: 420px) {
+    .rotation-control { padding: 6px 8px; gap: 4px 6px; }
+    .rotation-control input[type=range] { width: 80px; }
+    .rotation-control button { font-size: 10px; padding: 3px 6px; }
+    .rotation-control label { font-size: 10px; }
+    .size-label { display: none; }
   }
 
   /* Day marker badges */
@@ -130,6 +161,15 @@
     pointer-events: none;
     opacity: 1;
     transition: opacity 1s;
+    white-space: nowrap;
+  }
+  .hint-mobile { display: none; }
+  @media (pointer: coarse) {
+    .hint-desktop { display: none; }
+    .hint-mobile { display: inline; }
+  }
+  @media (max-width: 480px) {
+    .hint { font-size: 10px; padding: 5px 10px; top: 10px; }
   }
 </style>
 </head>
@@ -138,19 +178,23 @@
 <div id="map"></div>
 
 <div class="rotation-control">
-  <label>Rotate:</label>
-  <input type="range" id="bearingSlider" min="-180" max="180" value="0" step="1"/>
-  <span class="angle-display" id="angleDisplay">0Â°</span>
-  <button id="resetBtn">Reset</button>
+  <div class="rotation-row">
+    <label>Rotate:</label>
+    <input type="range" id="bearingSlider" min="-180" max="180" value="0" step="1"/>
+    <span class="angle-display" id="angleDisplay">0Â°</span>
+    <button id="resetBtn">Reset</button>
+  </div>
   <div class="divider"></div>
-  <button id="toggleDays" class="toggle-btn">Day Markers</button>
-  <label style="font-size:11px;color:#999;margin-left:2px;">Size:</label>
-  <input type="range" id="daySize" min="30" max="150" value="60" step="5" style="width:80px;accent-color:#000;"/>
-  <button id="toggleLabels" class="toggle-btn active">Town Names</button>
-  <button id="toggleRoute" class="toggle-btn active">Route</button>
+  <div class="toggle-row">
+    <button id="toggleDays" class="toggle-btn">Day Markers</button>
+    <label class="size-label" style="font-size:11px;color:#999;">Size:</label>
+    <input type="range" id="daySize" min="30" max="150" value="60" step="5" style="width:80px;accent-color:#000;"/>
+    <button id="toggleLabels" class="toggle-btn active">Town Names</button>
+    <button id="toggleRoute" class="toggle-btn active">Route</button>
+  </div>
 </div>
 
-<div class="hint" id="hint">Right-click + drag to rotate Â· Scroll to zoom Â· Click + drag to pan</div>
+<div class="hint" id="hint"><span class="hint-desktop">Right-click + drag to rotate Â· Scroll to zoom Â· Click + drag to pan</span><span class="hint-mobile">Two-finger rotate Â· Pinch to zoom Â· Drag to pan</span></div>
 
 <script>
 // ============================================
@@ -218,7 +262,6 @@ dayStages.forEach(stage => {
   stage.towns.forEach(t => routeCoords.push([t.lng, t.lat]));
 });
 
-// Town points - just names, small dots, subtle
 const addedTowns = new Set();
 const townFeatures = [];
 
@@ -229,155 +272,28 @@ dayStages.forEach(stage => {
     let label = town.name;
     if (town.type === "start") label = "START\n" + town.name;
     if (town.type === "end") label = "FINISH\n" + town.name;
-
-    townFeatures.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [town.lng, town.lat] },
-      properties: {
-        name: town.name,
-        label: label,
-        type: town.type,
-        size: (town.type === "start" || town.type === "end") ? "xl" :
-              (town.type === "major") ? "lg" : "sm"
-      }
-    });
+    townFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: [town.lng, town.lat] }, properties: { name: town.name, label: label, type: town.type, size: (town.type === "start" || town.type === "end") ? "xl" : (town.type === "major") ? "lg" : "sm" } });
   });
 });
 
-// Dublin for context
-townFeatures.push({
-  type: "Feature",
-  geometry: { type: "Point", coordinates: [-6.2603, 53.3498] },
-  properties: { name: "Dublin", label: "Dublin", type: "context", size: "lg" }
-});
-
-// ============================================
-// INIT MAP
-// ============================================
+townFeatures.push({ type: "Feature", geometry: { type: "Point", coordinates: [-6.2603, 53.3498] }, properties: { name: "Dublin", label: "Dublin", type: "context", size: "lg" } });
 
 const STYLE_URL = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+const isMobile = window.innerWidth <= 680;
 
-const map = new maplibregl.Map({
-  container: 'map',
-  style: STYLE_URL,
-  center: [-7.4, 54.05],
-  zoom: 8.2,
-  bearing: 0,
-  pitch: 0,
-  maxPitch: 0,
-  dragRotate: true
-});
+const map = new maplibregl.Map({ container: 'map', style: STYLE_URL, center: [-7.4, 54.05], zoom: isMobile ? 7.2 : 8.2, bearing: 0, pitch: 0, maxPitch: 0, dragRotate: true, touchZoomRotate: true });
 
 map.on('load', () => {
   const canvas = map.getCanvas();
   canvas.style.filter = 'grayscale(100%) contrast(1.05)';
+  map.addSource('route', { type: 'geojson', data: { type: "Feature", geometry: { type: "LineString", coordinates: routeCoords } } });
+  map.addLayer({ id: 'route-casing', type: 'line', source: 'route', paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.9 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+  map.addLayer({ id: 'route-line', type: 'line', source: 'route', paint: { 'line-color': '#000000', 'line-width': 3.5, 'line-opacity': 0.8 }, layout: { 'line-cap': 'round', 'line-join': 'round' } });
+  map.addSource('towns', { type: 'geojson', data: { type: "FeatureCollection", features: townFeatures } });
+  map.addLayer({ id: 'town-dots-halo', type: 'circle', source: 'towns', paint: { 'circle-radius': ['match', ['get', 'size'], 'xl', 6, 'lg', 5, 'sm', 4, 4], 'circle-color': '#ffffff', 'circle-opacity': 0.9 } });
+  map.addLayer({ id: 'town-dots', type: 'circle', source: 'towns', paint: { 'circle-radius': ['match', ['get', 'size'], 'xl', 4, 'lg', 3, 'sm', 2.5, 2.5], 'circle-color': '#000000', 'circle-opacity': 0.7, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1 } });
+  map.addLayer({ id: 'town-labels', type: 'symbol', source: 'towns', layout: { 'text-field': ['get', 'label'], 'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'], 'text-size': ['match', ['get', 'size'], 'xl', 12, 'lg', 11, 'sm', 10, 10], 'text-anchor': 'top', 'text-offset': [0, 0.6], 'text-allow-overlap': false, 'text-ignore-placement': false, 'text-padding': 4, 'text-rotation-alignment': 'viewport', 'text-pitch-alignment': 'viewport', 'symbol-sort-key': ['match', ['get', 'size'], 'xl', 0, 'lg', 1, 'sm', 2, 3] }, paint: { 'text-color': '#333333', 'text-halo-color': '#ffffff', 'text-halo-width': 2, 'text-halo-blur': 0.5 } });
 
-  // --- SINGLE CLEAN ROUTE LINE ---
-  map.addSource('route', {
-    type: 'geojson',
-    data: {
-      type: "Feature",
-      geometry: { type: "LineString", coordinates: routeCoords }
-    }
-  });
-
-  // White casing
-  map.addLayer({
-    id: 'route-casing',
-    type: 'line',
-    source: 'route',
-    paint: {
-      'line-color': '#ffffff',
-      'line-width': 8,
-      'line-opacity': 0.9
-    },
-    layout: { 'line-cap': 'round', 'line-join': 'round' }
-  });
-
-  // Route line
-  map.addLayer({
-    id: 'route-line',
-    type: 'line',
-    source: 'route',
-    paint: {
-      'line-color': '#000000',
-      'line-width': 3.5,
-      'line-opacity': 0.8
-    },
-    layout: { 'line-cap': 'round', 'line-join': 'round' }
-  });
-
-  // --- TOWN DOTS ---
-  map.addSource('towns', {
-    type: 'geojson',
-    data: { type: "FeatureCollection", features: townFeatures }
-  });
-
-  // White halo
-  map.addLayer({
-    id: 'town-dots-halo',
-    type: 'circle',
-    source: 'towns',
-    paint: {
-      'circle-radius': [
-        'match', ['get', 'size'],
-        'xl', 6, 'lg', 5, 'sm', 4, 4
-      ],
-      'circle-color': '#ffffff',
-      'circle-opacity': 0.9
-    }
-  });
-
-  // Dot
-  map.addLayer({
-    id: 'town-dots',
-    type: 'circle',
-    source: 'towns',
-    paint: {
-      'circle-radius': [
-        'match', ['get', 'size'],
-        'xl', 4, 'lg', 3, 'sm', 2.5, 2.5
-      ],
-      'circle-color': '#000000',
-      'circle-opacity': 0.7,
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 1
-    }
-  });
-
-  // --- TOWN LABELS (subtle, background-friendly) ---
-  map.addLayer({
-    id: 'town-labels',
-    type: 'symbol',
-    source: 'towns',
-    layout: {
-      'text-field': ['get', 'label'],
-      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-      'text-size': [
-        'match', ['get', 'size'],
-        'xl', 12, 'lg', 11, 'sm', 10, 10
-      ],
-      'text-anchor': 'top',
-      'text-offset': [0, 0.6],
-      'text-allow-overlap': false,
-      'text-ignore-placement': false,
-      'text-padding': 4,
-      'text-rotation-alignment': 'viewport',
-      'text-pitch-alignment': 'viewport',
-      'symbol-sort-key': [
-        'match', ['get', 'size'],
-        'xl', 0, 'lg', 1, 'sm', 2, 3
-      ]
-    },
-    paint: {
-      'text-color': '#333333',
-      'text-halo-color': '#ffffff',
-      'text-halo-width': 2,
-      'text-halo-blur': 0.5
-    }
-  });
-
-  // --- DAY BADGES (hidden by default) ---
   const dayBadgePositions = [
     { day: 1, label: "DAY 1 Â· 46km", lat: 53.6200, lng: -6.5600 },
     { day: 2, label: "DAY 2 Â· 54km", lat: 53.8800, lng: -7.1000 },
@@ -385,100 +301,34 @@ map.on('load', () => {
     { day: 4, label: "DAY 4 Â· 43km", lat: 54.5500, lng: -7.8700 },
     { day: 5, label: "DAY 5 Â· 51km", lat: 54.6800, lng: -8.4200 },
   ];
-
   window.dayMarkers = [];
   dayBadgePositions.forEach(badge => {
     const el = document.createElement('div');
     el.className = 'day-marker';
-    el.innerHTML = `
-      <div class="badge">${badge.label}</div>
-      <div class="connector"></div>
-      <div class="dot"></div>
-    `;
-    el.style.opacity = '0';
-    el.style.pointerEvents = 'none';
-    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-      .setLngLat([badge.lng, badge.lat])
-      .addTo(map);
+    el.innerHTML = `<div class="badge">${badge.label}</div><div class="connector"></div><div class="dot"></div>`;
+    el.style.opacity = '0'; el.style.pointerEvents = 'none';
+    const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' }).setLngLat([badge.lng, badge.lat]).addTo(map);
     window.dayMarkers.push({ marker, el });
   });
-
-  // Fade hint
-  setTimeout(() => {
-    document.getElementById('hint').style.opacity = '0';
-  }, 4000);
+  setTimeout(() => { document.getElementById('hint').style.opacity = '0'; }, 4000);
 });
-
-// ============================================
-// ROTATION CONTROLS
-// ============================================
 
 const slider = document.getElementById('bearingSlider');
 const angleDisplay = document.getElementById('angleDisplay');
 const resetBtn = document.getElementById('resetBtn');
-
-slider.addEventListener('input', () => {
-  const bearing = parseInt(slider.value);
-  map.setBearing(bearing);
-  angleDisplay.textContent = bearing + 'Â°';
-});
-
-map.on('rotate', () => {
-  const b = Math.round(map.getBearing());
-  slider.value = b;
-  angleDisplay.textContent = b + 'Â°';
-});
-
-resetBtn.addEventListener('click', () => {
-  map.easeTo({ bearing: 0, duration: 500 });
-  slider.value = 0;
-  angleDisplay.textContent = '0Â°';
-});
-
-// ============================================
-// TOGGLE CONTROLS
-// ============================================
+slider.addEventListener('input', () => { map.setBearing(parseInt(slider.value)); angleDisplay.textContent = slider.value + 'Â°'; });
+map.on('rotate', () => { const b = Math.round(map.getBearing()); slider.value = b; angleDisplay.textContent = b + 'Â°'; });
+resetBtn.addEventListener('click', () => { map.easeTo({ bearing: 0, duration: 500 }); slider.value = 0; angleDisplay.textContent = '0Â°'; });
 
 const toggleDays = document.getElementById('toggleDays');
 const toggleLabels = document.getElementById('toggleLabels');
 const toggleRoute = document.getElementById('toggleRoute');
-
-let daysVisible = false;
-let labelsVisible = true;
-let routeVisible = true;
-
+let daysVisible = false, labelsVisible = true, routeVisible = true;
 const daySizeSlider = document.getElementById('daySize');
-
-toggleDays.addEventListener('click', () => {
-  daysVisible = !daysVisible;
-  toggleDays.classList.toggle('active', daysVisible);
-  window.dayMarkers.forEach(({ el }) => {
-    el.style.opacity = daysVisible ? '1' : '0';
-  });
-});
-
-daySizeSlider.addEventListener('input', () => {
-  const scale = parseInt(daySizeSlider.value) / 100;
-  window.dayMarkers.forEach(({ el }) => {
-    el.style.transform = `scale(${scale})`;
-  });
-});
-
-toggleLabels.addEventListener('click', () => {
-  labelsVisible = !labelsVisible;
-  toggleLabels.classList.toggle('active', labelsVisible);
-  map.setLayoutProperty('town-labels', 'visibility', labelsVisible ? 'visible' : 'none');
-  map.setLayoutProperty('town-dots', 'visibility', labelsVisible ? 'visible' : 'none');
-  map.setLayoutProperty('town-dots-halo', 'visibility', labelsVisible ? 'visible' : 'none');
-});
-
-toggleRoute.addEventListener('click', () => {
-  routeVisible = !routeVisible;
-  toggleRoute.classList.toggle('active', routeVisible);
-  map.setLayoutProperty('route-line', 'visibility', routeVisible ? 'visible' : 'none');
-  map.setLayoutProperty('route-casing', 'visibility', routeVisible ? 'visible' : 'none');
-});
-
+toggleDays.addEventListener('click', () => { daysVisible = !daysVisible; toggleDays.classList.toggle('active', daysVisible); window.dayMarkers.forEach(({ el }) => { el.style.opacity = daysVisible ? '1' : '0'; }); });
+daySizeSlider.addEventListener('input', () => { const s = parseInt(daySizeSlider.value) / 100; window.dayMarkers.forEach(({ el }) => { el.style.transform = `scale(${s})`; }); });
+toggleLabels.addEventListener('click', () => { labelsVisible = !labelsVisible; toggleLabels.classList.toggle('active', labelsVisible); ['town-labels','town-dots','town-dots-halo'].forEach(l => map.setLayoutProperty(l, 'visibility', labelsVisible ? 'visible' : 'none')); });
+toggleRoute.addEventListener('click', () => { routeVisible = !routeVisible; toggleRoute.classList.toggle('active', routeVisible); ['route-line','route-casing'].forEach(l => map.setLayoutProperty(l, 'visibility', routeVisible ? 'visible' : 'none')); });
 </script>
 </body>
 </html>
